@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart' show kIsWeb; // <-- 1. Import kIsWeb
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -13,6 +14,11 @@ class LaunchDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String? largeImageUrl = launch.links.patch.large;
+    if (kIsWeb && largeImageUrl != null) {
+      largeImageUrl = 'https://cors-anywhere.herokuapp.com/$largeImageUrl';
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(launch.name),
@@ -37,12 +43,12 @@ class LaunchDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (launch.links.patch.large != null)
+            if (largeImageUrl != null)
               Center(
                 child: Hero(
                   tag: 'patch_${launch.id}',
                   child: CachedNetworkImage(
-                    imageUrl: launch.links.patch.large!,
+                    imageUrl: largeImageUrl,
                     height: 200,
                     placeholder: (context, url) =>
                         const Center(child: CircularProgressIndicator()),
@@ -72,14 +78,12 @@ class LaunchDetailScreen extends StatelessWidget {
             if (launch.failures.isNotEmpty) ...[
               Text('Failures', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 8),
-              ...launch.failures
-                  .map(
-                    (f) => Text(
-                      '- ${f.reason}',
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  )
-                  .toList(),
+              ...launch.failures.map(
+                (f) => Text(
+                  '- ${f.reason}',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+              ),
             ],
             const SizedBox(height: 24),
             Text(

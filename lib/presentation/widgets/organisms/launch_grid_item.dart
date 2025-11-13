@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:spacex_app/data/models/launch_model.dart';
 import 'package:spacex_app/presentation/pages/launch_detail_screen.dart';
@@ -10,6 +11,11 @@ class LaunchGridItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String? imageUrl = launch.links.patch.small;
+    if (kIsWeb && imageUrl != null) {
+      imageUrl = 'https://cors-anywhere.herokuapp.com/$imageUrl';
+    }
+
     return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
@@ -27,9 +33,9 @@ class LaunchGridItem extends StatelessWidget {
             tag: 'patch_${launch.id}',
             child: Container(
               color: Colors.grey.shade800,
-              child: launch.links.patch.small != null
+              child: imageUrl != null
                   ? CachedNetworkImage(
-                      imageUrl: launch.links.patch.small!,
+                      imageUrl: imageUrl,
                       fit: BoxFit.contain,
                       placeholder: (context, url) =>
                           const Center(child: CircularProgressIndicator()),

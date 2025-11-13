@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:spacex_app/data/models/launch_model.dart';
@@ -11,6 +12,12 @@ class LaunchListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Handle potential null URL and apply proxy for web.
+    String? imageUrl = launch.links.patch.small;
+    if (kIsWeb && imageUrl != null) {
+      imageUrl = 'https://cors-anywhere.herokuapp.com/$imageUrl';
+    }
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: InkWell(
@@ -25,11 +32,11 @@ class LaunchListItem extends StatelessWidget {
           padding: const EdgeInsets.all(12.0),
           child: Row(
             children: [
-              if (launch.links.patch.small != null)
+              if (imageUrl != null)
                 Hero(
                   tag: 'patch_${launch.id}',
                   child: CachedNetworkImage(
-                    imageUrl: launch.links.patch.small!,
+                    imageUrl: imageUrl,
                     width: 60,
                     height: 60,
                     placeholder: (context, url) =>
