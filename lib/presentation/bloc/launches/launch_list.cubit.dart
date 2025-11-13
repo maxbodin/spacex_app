@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:spacex_app/data/datasources/spacex_api_service.dart';
+import 'package:spacex_app/data/api/spacex.service.dart';
 
-import 'launch_list_state.dart';
+import 'launch_list.state.dart';
 
 class LaunchListCubit extends Cubit<LaunchListState> {
   final SpaceXApiService apiService;

@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
-import 'package:spacex_app/data/models/launch_model.dart';
+import 'package:spacex_app/data/models/launch.model.dart';
 
 abstract class SpaceXApiService {
   Future<List<LaunchModel>> getLatestLaunches();

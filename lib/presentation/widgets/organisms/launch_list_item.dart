@@ -2,8 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:spacex_app/data/models/launch_model.dart';
-import 'package:spacex_app/presentation/pages/launch_detail_screen.dart';
+import 'package:spacex_app/data/models/launch.model.dart';
+import 'package:spacex_app/presentation/pages/launch_detail.page.dart';
 
 class LaunchListItem extends StatelessWidget {
   final LaunchModel launch;

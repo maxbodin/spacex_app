@@ -3,11 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'data/datasources/spacex_api_service.dart';
-import 'presentation/bloc/favorites/favorites_cubit.dart';
-import 'presentation/bloc/launches/launch_list_cubit.dart';
-import 'presentation/pages/launch_list_screen.dart';
-import 'presentation/pages/onboarding_screen.dart';
+import 'data/api/spacex.service.dart';
+import 'presentation/bloc/favorites/favorites.cubit.dart';
+import 'presentation/bloc/launches/launch_list.cubit.dart';
+import 'presentation/pages/launch_list.page.dart';
+import 'presentation/pages/onboarding.page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

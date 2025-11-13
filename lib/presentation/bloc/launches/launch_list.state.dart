@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:spacex_app/data/models/launch_model.dart';
+import 'package:spacex_app/data/models/launch.model.dart';
 
 abstract class LaunchListState extends Equatable {
   const LaunchListState();

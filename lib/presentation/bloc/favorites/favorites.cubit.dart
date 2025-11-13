@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'favorites_state.dart';
+import 'favorites.state.dart';
 
 class FavoritesCubit extends Cubit<FavoritesState> {
   static const _favoritesKey = 'favoriteLaunches';

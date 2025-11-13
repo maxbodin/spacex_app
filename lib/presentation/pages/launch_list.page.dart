@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:spacex_app/presentation/bloc/launches/launch_list_cubit.dart';
-import 'package:spacex_app/presentation/bloc/launches/launch_list_state.dart';
+import 'package:spacex_app/presentation/bloc/launches/launch_list.cubit.dart';
+import 'package:spacex_app/presentation/bloc/launches/launch_list.state.dart';
 import 'package:spacex_app/presentation/widgets/organisms/launch_grid_item.dart';
 import 'package:spacex_app/presentation/widgets/organisms/launch_list_item.dart';
 

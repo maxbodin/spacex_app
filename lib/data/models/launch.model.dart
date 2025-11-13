@@ -1,6 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
 
-part 'launch_model.g.dart';
+part 'launch.model.g.dart';
 
 @JsonSerializable()
 class LaunchModel {

@@ -1,11 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/foundation.dart' show kIsWeb; // <-- 1. Import kIsWeb
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:spacex_app/data/models/launch_model.dart';
-import 'package:spacex_app/presentation/bloc/favorites/favorites_cubit.dart';
-import 'package:spacex_app/presentation/bloc/favorites/favorites_state.dart';
+import 'package:spacex_app/data/models/launch.model.dart';
+import 'package:spacex_app/presentation/bloc/favorites/favorites.cubit.dart';
+import 'package:spacex_app/presentation/bloc/favorites/favorites.state.dart';
 
 class LaunchDetailScreen extends StatelessWidget {
   final LaunchModel launch;
