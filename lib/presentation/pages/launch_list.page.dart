@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:spacex_app/data/models/launch.model.dart';
+import 'package:spacex_app/data/models/launch_search_extension.dart';
 import 'package:spacex_app/presentation/bloc/favorites/favorites.cubit.dart';
 import 'package:spacex_app/presentation/bloc/favorites/favorites.state.dart';
 import 'package:spacex_app/presentation/bloc/launches/launch_list.cubit.dart';
@@ -8,8 +9,32 @@ import 'package:spacex_app/presentation/bloc/launches/launch_list.state.dart';
 import 'package:spacex_app/presentation/widgets/organisms/launch_grid_item.dart';
 import 'package:spacex_app/presentation/widgets/organisms/launch_list_item.dart';
 
-class LaunchListPage extends StatelessWidget {
+class LaunchListPage extends StatefulWidget {
   const LaunchListPage({super.key});
+
+  @override
+  State<LaunchListPage> createState() => _LaunchListPageState();
+}
+
+class _LaunchListPageState extends State<LaunchListPage> {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,45 +57,94 @@ class LaunchListPage extends StatelessWidget {
           ),
         ],
       ),
-      body: BlocBuilder<FavoritesCubit, FavoritesState>(
-        builder: (context, favoritesState) {
-          return BlocBuilder<LaunchListCubit, LaunchListState>(
-            builder: (context, launchState) {
-              if (launchState is LaunchListLoading ||
-                  launchState is LaunchListInitial) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (launchState is LaunchListError) {
-                return Center(child: Text('Error: ${launchState.message}'));
-              }
+      body: Column(
+        children: [
+          _SearchBar(controller: _searchController),
+          Expanded(
+            child: BlocBuilder<FavoritesCubit, FavoritesState>(
+              builder: (context, favoritesState) {
+                return BlocBuilder<LaunchListCubit, LaunchListState>(
+                  builder: (context, launchState) {
+                    if (launchState is LaunchListLoading ||
+                        launchState is LaunchListInitial) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (launchState is LaunchListError) {
+                      return Center(
+                        child: Text('Error: ${launchState.message}'),
+                      );
+                    }
+                    if (launchState is LaunchListLoaded &&
+                        favoritesState is FavoritesLoaded) {
+                      final allLaunches = launchState.launches.reversed
+                          .toList();
 
-              if (launchState is LaunchListLoaded &&
-                  favoritesState is FavoritesLoaded) {
-                final allLaunches = launchState.launches.reversed.toList();
-                final favoriteIds = favoritesState.favoriteIds.toSet();
+                      final filteredLaunches = allLaunches
+                          .where((launch) => launch.matchesSearch(_searchQuery))
+                          .toList();
 
-                final favoriteLaunches = <LaunchModel>[];
-                final otherLaunches = <LaunchModel>[];
+                      final favoriteIds = favoritesState.favoriteIds.toSet();
+                      final favoriteLaunches = <LaunchModel>[];
+                      final otherLaunches = <LaunchModel>[];
 
-                for (final launch in allLaunches) {
-                  if (favoriteIds.contains(launch.id)) {
-                    favoriteLaunches.add(launch);
-                  } else {
-                    otherLaunches.add(launch);
-                  }
-                }
+                      for (final launch in filteredLaunches) {
+                        if (favoriteIds.contains(launch.id)) {
+                          favoriteLaunches.add(launch);
+                        } else {
+                          otherLaunches.add(launch);
+                        }
+                      }
 
-                return _LaunchDisplay(
-                  favoriteLaunches: favoriteLaunches,
-                  otherLaunches: otherLaunches,
-                  isGridView: launchState.isGridView,
+                      return _LaunchDisplay(
+                        favoriteLaunches: favoriteLaunches,
+                        otherLaunches: otherLaunches,
+                        isGridView: launchState.isGridView,
+                        searchQuery: _searchQuery,
+                      );
+                    }
+                    return const Center(child: Text('Something went wrong.'));
+                  },
                 );
-              }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-              return const Center(child: Text('Something went wrong.'));
-            },
-          );
-        },
+class _SearchBar extends StatelessWidget {
+  final TextEditingController controller;
+
+  const _SearchBar({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          hintText: 'Search by name, flight number, details...',
+          prefixIcon: const Icon(Icons.search, color: Colors.grey),
+          suffixIcon: controller.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, color: Colors.grey),
+                  onPressed: () => controller.clear(),
+                )
+              : null,
+          filled: true,
+          fillColor: Colors.grey.shade800,
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 0,
+            horizontal: 16,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide: BorderSide.none,
+          ),
+        ),
       ),
     );
   }
@@ -81,18 +155,33 @@ class _LaunchDisplay extends StatelessWidget {
   final List<LaunchModel> favoriteLaunches;
   final List<LaunchModel> otherLaunches;
   final bool isGridView;
+  final String searchQuery;
 
   const _LaunchDisplay({
     required this.favoriteLaunches,
     required this.otherLaunches,
     required this.isGridView,
+    required this.searchQuery,
   });
 
   @override
   Widget build(BuildContext context) {
     if (favoriteLaunches.isEmpty && otherLaunches.isEmpty) {
+      // If there's a search query, it means no results were found.
+      if (searchQuery.isNotEmpty) {
+        return const Center(
+          child: Text(
+            'No results found.',
+            style: TextStyle(color: Colors.grey),
+          ),
+        );
+      }
+      // Otherwise, the initial list itself is empty.
       return const Center(
-        child: Text('No launches found.', style: TextStyle(color: Colors.grey)),
+        child: Text(
+          'No launches available.',
+          style: TextStyle(color: Colors.grey),
+        ),
       );
     }
 
@@ -152,7 +241,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16.0, 24.0, 16.0, 8.0),
+        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
         child: Text(
           title,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
