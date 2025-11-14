@@ -526,7 +526,9 @@ class _LaunchDetailView extends StatelessWidget {
           ),
           _InfoRow(
             label: 'Timezone',
-            value: launchpad.timezone.replaceAll('/', ', ').replaceAll('_', ' '),
+            value: launchpad.timezone
+                .replaceAll('/', ', ')
+                .replaceAll('_', ' '),
           ),
           _InfoRow(
             label: 'Status',
@@ -545,43 +547,91 @@ class _LaunchDetailView extends StatelessWidget {
     BuildContext context,
     List<PayloadModel> payloads,
   ) {
+    final massFormat = NumberFormat.decimalPattern('en_US');
+    final theme = Theme.of(context).copyWith(dividerColor: Colors.transparent);
+
     return _InfoCard(
       title: 'Payloads (${payloads.length})',
-      child: Column(
-        children: payloads.asMap().entries.map((entry) {
-          int idx = entry.key;
-          PayloadModel payload = entry.value;
-          return Padding(
-            padding: EdgeInsets.only(top: idx > 0 ? 16.0 : 0.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  payload.name,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 4),
-                _InfoRow(label: 'Type', value: payload.type ?? 'N/A'),
-                _InfoRow(
-                  label: 'Nationality',
-                  value: payload.nationality ?? 'N/A',
-                ),
-                _InfoRow(
-                  label: 'Mass',
-                  value: payload.massKg != null
-                      ? '${payload.massKg} kg'
-                      : 'N/A',
-                ),
-                _InfoRow(label: 'Orbit', value: payload.orbit ?? 'N/A'),
-                _InfoRow(
-                  label: 'Customers',
-                  value: payload.customers.join(', '),
-                ),
-                if (idx < payloads.length - 1) const Divider(height: 24),
-              ],
-            ),
-          );
-        }).toList(),
+      child: Theme(
+        data: theme,
+        child: Column(
+          children: payloads.asMap().entries.map((entry) {
+            int idx = entry.key;
+            PayloadModel payload = entry.value;
+            return Padding(
+              padding: EdgeInsets.only(top: idx > 0 ? 16.0 : 0.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    payload.name,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  _InfoRow(label: 'Type', value: payload.type ?? 'N/A'),
+                  _InfoRow(
+                    label: 'Reused',
+                    value: payload.reused ? 'Yes' : 'No',
+                  ),
+                  if (payload.massKg != null && payload.massLbs != null)
+                    _InfoRow(
+                      label: 'Mass',
+                      value:
+                          '${massFormat.format(payload.massKg)} kg / ${massFormat.format(payload.massLbs)} lbs',
+                    ),
+                  _InfoRow(
+                    label: 'Manufacturers',
+                    value: payload.manufacturers.join(', '),
+                  ),
+                  _InfoRow(
+                    label: 'Customers',
+                    value: payload.customers.join(', '),
+                  ),
+                  _InfoRow(
+                    label: 'Nationalities',
+                    value: payload.nationalities.join(', '),
+                  ),
+
+                  ExpansionTile(
+                    title: const Text('Orbital Details'),
+                    tilePadding: EdgeInsets.zero,
+                    childrenPadding: const EdgeInsets.only(
+                      left: 16.0,
+                      bottom: 8.0,
+                    ),
+                    children: [
+                      _InfoRow(label: 'Orbit', value: payload.orbit ?? 'N/A'),
+                      _InfoRow(label: 'Regime', value: payload.regime ?? 'N/A'),
+                      if (payload.lifespanYears != null)
+                        _InfoRow(
+                          label: 'Lifespan',
+                          value: '${payload.lifespanYears} years',
+                        ),
+                      if (payload.apoapsisKm != null)
+                        _InfoRow(
+                          label: 'Apoapsis',
+                          value: '${payload.apoapsisKm?.toStringAsFixed(2)} km',
+                        ),
+                      if (payload.periapsisKm != null)
+                        _InfoRow(
+                          label: 'Periapsis',
+                          value:
+                              '${payload.periapsisKm?.toStringAsFixed(2)} km',
+                        ),
+                      if (payload.inclinationDeg != null)
+                        _InfoRow(
+                          label: 'Inclination',
+                          value: '${payload.inclinationDeg}°',
+                        ),
+                    ],
+                  ),
+
+                  if (idx < payloads.length - 1) const Divider(height: 24),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
