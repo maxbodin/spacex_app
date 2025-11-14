@@ -51,9 +51,7 @@ class MyApp extends StatelessWidget {
             secondary: Colors.blueGrey,
           ),
         ),
-        home: seenOnboarding
-            ? const LaunchListScreen()
-            : const OnboardingScreen(),
+        home: seenOnboarding ? const LaunchListPage() : const OnboardingPage(),
       ),
     );
   }

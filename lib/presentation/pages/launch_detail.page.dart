@@ -3,20 +3,21 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:spacex_app/core/utils/image_proxy_helper.dart';
 import 'package:spacex_app/data/models/launch.model.dart';
 import 'package:spacex_app/presentation/bloc/favorites/favorites.cubit.dart';
 import 'package:spacex_app/presentation/bloc/favorites/favorites.state.dart';
 
-class LaunchDetailScreen extends StatelessWidget {
+class LaunchDetailPage extends StatelessWidget {
   final LaunchModel launch;
 
-  const LaunchDetailScreen({super.key, required this.launch});
+  const LaunchDetailPage({super.key, required this.launch});
 
   @override
   Widget build(BuildContext context) {
     String? largeImageUrl = launch.links.patch.large;
     if (kIsWeb && largeImageUrl != null) {
-      largeImageUrl = 'https://cors-anywhere.herokuapp.com/$largeImageUrl';
+      largeImageUrl = getProxiedImageUrl(largeImageUrl);
     }
 
     return Scaffold(

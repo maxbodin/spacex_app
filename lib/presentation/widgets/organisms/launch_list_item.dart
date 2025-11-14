@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:spacex_app/core/utils/image_proxy_helper.dart';
 import 'package:spacex_app/data/models/launch.model.dart';
 import 'package:spacex_app/presentation/pages/launch_detail.page.dart';
 
@@ -12,10 +13,9 @@ class LaunchListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Handle potential null URL and apply proxy for web.
     String? imageUrl = launch.links.patch.small;
     if (kIsWeb && imageUrl != null) {
-      imageUrl = 'https://cors-anywhere.herokuapp.com/$imageUrl';
+      imageUrl = getProxiedImageUrl(imageUrl);
     }
 
     return Card(
@@ -23,9 +23,7 @@ class LaunchListItem extends StatelessWidget {
       child: InkWell(
         onTap: () {
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => LaunchDetailScreen(launch: launch),
-            ),
+            MaterialPageRoute(builder: (_) => LaunchDetailPage(launch: launch)),
           );
         },
         child: Padding(
