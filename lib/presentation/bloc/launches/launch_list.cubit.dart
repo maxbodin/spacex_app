@@ -11,7 +11,7 @@ class LaunchListCubit extends Cubit<LaunchListState> {
   Future<void> fetchLaunches() async {
     try {
       emit(LaunchListLoading());
-      final launches = await apiService.getLatestLaunches();
+      final launches = await apiService.getAllLaunches();
       emit(LaunchListLoaded(launches: launches));
     } catch (e) {
       emit(LaunchListError(message: e.toString()));

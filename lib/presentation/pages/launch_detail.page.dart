@@ -2,17 +2,40 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:spacex_app/core/utils/image_proxy_helper.dart';
+import 'package:spacex_app/data/api/spacex.service.dart';
 import 'package:spacex_app/data/models/launch.model.dart';
+import 'package:spacex_app/data/models/launchpad.model.dart';
+import 'package:spacex_app/data/models/payload.model.dart';
+import 'package:spacex_app/data/models/rocket.model.dart';
 import 'package:spacex_app/presentation/bloc/favorites/favorites.cubit.dart';
 import 'package:spacex_app/presentation/bloc/favorites/favorites.state.dart';
+import 'package:spacex_app/presentation/bloc/launch_detail/launch_detail_cubit.dart';
+import 'package:spacex_app/presentation/bloc/launch_detail/launch_detail_state.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LaunchDetailPage extends StatelessWidget {
   final LaunchModel launch;
 
   const LaunchDetailPage({super.key, required this.launch});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => LaunchDetailCubit(
+        apiService: SpaceXApiServiceImpl(client: http.Client()),
+      )..fetchLaunchDetails(launch),
+      child: _LaunchDetailView(initialLaunch: launch),
+    );
+  }
+}
+
+class _LaunchDetailView extends StatelessWidget {
+  final LaunchModel initialLaunch;
+
+  const _LaunchDetailView({required this.initialLaunch});
 
   // Helper function to launch URLs safely
   Future<void> _launchUrl(String? urlString) async {
@@ -23,9 +46,8 @@ class LaunchDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String? largeImageUrl = launch.links.patch.large;
-    String? smallImageUrl = launch.links.patch.small;
-
+    String? largeImageUrl = initialLaunch.links.patch.large;
+    String? smallImageUrl = initialLaunch.links.patch.small;
     if (kIsWeb) {
       if (largeImageUrl != null) {
         largeImageUrl = getProxiedImageUrl(largeImageUrl);
@@ -37,55 +59,93 @@ class LaunchDetailPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(launch.name),
+        title: Text(initialLaunch.name),
         actions: [
           BlocBuilder<FavoritesCubit, FavoritesState>(
             builder: (context, state) {
               bool isFavorite = false;
               if (state is FavoritesLoaded) {
-                isFavorite = state.favoriteIds.contains(launch.id);
+                isFavorite = state.favoriteIds.contains(initialLaunch.id);
               }
               return IconButton(
                 icon: Icon(
                   isFavorite ? Icons.favorite : Icons.favorite_border,
                   color: isFavorite ? Colors.pink.shade300 : null,
                 ),
-                onPressed: () =>
-                    context.read<FavoritesCubit>().toggleFavorite(launch.id),
+                onPressed: () => context.read<FavoritesCubit>().toggleFavorite(
+                  initialLaunch.id,
+                ),
               );
             },
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _buildHeader(context, largeImageUrl, smallImageUrl),
-              const SizedBox(height: 24),
+      body: BlocBuilder<LaunchDetailCubit, LaunchDetailState>(
+        builder: (context, state) {
+          if (state is LaunchDetailError) {
+            return Center(child: Text('Error: ${state.message}'));
+          }
+          if (state is LaunchDetailLoading || state is LaunchDetailInitial) {
+            return SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    _buildHeader(
+                      context,
+                      initialLaunch,
+                      largeImageUrl,
+                      smallImageUrl,
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          if (state is LaunchDetailLoaded) {
+            return SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _buildHeader(
+                      context,
+                      state.launch,
+                      largeImageUrl,
+                      smallImageUrl,
+                    ),
+                    const SizedBox(height: 24),
 
-              if (launch.details != null || launch.failures.isNotEmpty)
-                _buildDetailsCard(context),
+                    _buildDetailsCard(context, state.launch),
+                    _buildRocketInfoCard(context, state.rocket),
+                    _buildLaunchpadInfoCard(context, state.launchpad),
 
-              _buildMissionInfoCard(context),
+                    if (state.payloads.isNotEmpty)
+                      _buildPayloadsInfoCard(context, state.payloads),
 
-              if (launch.cores.isNotEmpty) _buildCoreInfoCard(context),
+                    if (state.launch.cores.isNotEmpty)
+                      _buildCoreInfoCard(context, state.launch.cores),
 
-              if (launch.links.webcast != null ||
-                  launch.links.article != null ||
-                  launch.links.wikipedia != null)
-                _buildLinksCard(context),
-            ],
-          ),
-        ),
+                    _buildLinksCard(context, state.launch),
+                  ],
+                ),
+              ),
+            );
+          }
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
 
   Widget _buildHeader(
     BuildContext context,
+    LaunchModel launch,
     String? largeImageUrl,
     String? smallImageUrl,
   ) {
@@ -152,7 +212,10 @@ class LaunchDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailsCard(BuildContext context) {
+  Widget _buildDetailsCard(BuildContext context, LaunchModel launch) {
+    if (launch.details == null && launch.failures.isEmpty) {
+      return const SizedBox.shrink();
+    }
     return _InfoCard(
       title: 'Launch Details',
       child: Column(
@@ -186,38 +249,118 @@ class LaunchDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildMissionInfoCard(BuildContext context) {
+  Widget _buildRocketInfoCard(BuildContext context, RocketModel rocket) {
+    final costFormat = NumberFormat.currency(
+      locale: 'en_US',
+      symbol: '\$',
+      decimalDigits: 0,
+    );
     return _InfoCard(
-      title: 'Mission Info',
+      title: 'Rocket: ${rocket.name}',
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _InfoRow(label: 'Rocket ID', value: launch.rocketId),
-          _InfoRow(label: 'Launchpad ID', value: launch.launchpad),
-          if (launch.crew.isNotEmpty)
-            _InfoRow(
-              label: 'Crew Members',
-              value: launch.crew.length.toString(),
-            ),
-          if (launch.capsules.isNotEmpty)
-            _InfoRow(
-              label: 'Capsules',
-              value: launch.capsules.length.toString(),
-            ),
-          if (launch.payloads.isNotEmpty)
-            _InfoRow(
-              label: 'Payloads',
-              value: launch.payloads.length.toString(),
-            ),
+          Text(
+            rocket.description,
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 16),
+          _InfoRow(label: 'Company', value: rocket.company),
+          _InfoRow(label: 'Country', value: rocket.country),
+          _InfoRow(label: 'Success Rate', value: '${rocket.successRatePct}%'),
+          _InfoRow(
+            label: 'Cost Per Launch',
+            value: costFormat.format(rocket.costPerLaunch),
+          ),
+          _InfoRow(
+            label: 'Status',
+            value: rocket.active ? 'Active' : 'Inactive',
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildCoreInfoCard(BuildContext context) {
+  Widget _buildLaunchpadInfoCard(
+    BuildContext context,
+    LaunchpadModel launchpad,
+  ) {
+    return _InfoCard(
+      title: 'Launchpad',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            launchpad.fullName,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(launchpad.details, style: Theme.of(context).textTheme.bodyLarge),
+          const SizedBox(height: 16),
+          _InfoRow(
+            label: 'Location',
+            value: '${launchpad.locality}, ${launchpad.region}',
+          ),
+          _InfoRow(label: 'Status', value: launchpad.status),
+          _InfoRow(
+            label: 'Successful Launches',
+            value: '${launchpad.launchSuccesses} / ${launchpad.launchAttempts}',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPayloadsInfoCard(
+    BuildContext context,
+    List<PayloadModel> payloads,
+  ) {
+    return _InfoCard(
+      title: 'Payloads (${payloads.length})',
+      child: Column(
+        children: payloads.asMap().entries.map((entry) {
+          int idx = entry.key;
+          PayloadModel payload = entry.value;
+          return Padding(
+            padding: EdgeInsets.only(top: idx > 0 ? 16.0 : 0.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  payload.name,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                _InfoRow(label: 'Type', value: payload.type ?? 'N/A'),
+                _InfoRow(
+                  label: 'Nationality',
+                  value: payload.nationality ?? 'N/A',
+                ),
+                _InfoRow(
+                  label: 'Mass',
+                  value: payload.massKg != null
+                      ? '${payload.massKg} kg'
+                      : 'N/A',
+                ),
+                _InfoRow(label: 'Orbit', value: payload.orbit ?? 'N/A'),
+                _InfoRow(
+                  label: 'Customers',
+                  value: payload.customers.join(', '),
+                ),
+                if (idx < payloads.length - 1) const Divider(height: 24),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildCoreInfoCard(BuildContext context, List<CoreModel> cores) {
     return _InfoCard(
       title: 'Rocket Core Details',
       child: Column(
-        children: launch.cores.asMap().entries.map((entry) {
+        children: cores.asMap().entries.map((entry) {
           int idx = entry.key;
           CoreModel core = entry.value;
           return Padding(
@@ -225,7 +368,7 @@ class LaunchDetailPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (launch.cores.length > 1)
+                if (cores.length > 1)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8.0),
                     child: Text(
@@ -265,7 +408,12 @@ class LaunchDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildLinksCard(BuildContext context) {
+  Widget _buildLinksCard(BuildContext context, LaunchModel launch) {
+    if (launch.links.webcast == null &&
+        launch.links.article == null &&
+        launch.links.wikipedia == null) {
+      return const SizedBox.shrink();
+    }
     return _InfoCard(
       title: 'Find Out More',
       child: Column(
@@ -336,9 +484,12 @@ class _InfoRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: Colors.grey)),
-          Text(
-            value,
-            style: TextStyle(fontWeight: FontWeight.bold, color: valueColor),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(fontWeight: FontWeight.bold, color: valueColor),
+            ),
           ),
         ],
       ),
