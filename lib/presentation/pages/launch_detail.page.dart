@@ -484,6 +484,35 @@ class _LaunchDetailView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (launchpad.images.large.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: SizedBox(
+                height: 150,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: launchpad.images.large.length,
+                  itemBuilder: (context, index) {
+                    final imageUrl = kIsWeb
+                        ? getProxiedImageUrl(launchpad.images.large[index])
+                        : launchpad.images.large[index];
+                    return Card(
+                      clipBehavior: Clip.antiAlias,
+                      margin: const EdgeInsets.only(right: 12.0),
+                      child: CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        width: 250,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) =>
+                            const Center(child: CircularProgressIndicator()),
+                        errorWidget: (context, url, error) =>
+                            const Icon(Icons.error),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
           Text(
             launchpad.fullName,
             style: Theme.of(context).textTheme.titleMedium,
@@ -495,7 +524,14 @@ class _LaunchDetailView extends StatelessWidget {
             label: 'Location',
             value: '${launchpad.locality}, ${launchpad.region}',
           ),
-          _InfoRow(label: 'Status', value: launchpad.status),
+          _InfoRow(
+            label: 'Timezone',
+            value: launchpad.timezone.replaceAll('/', ', ').replaceAll('_', ' '),
+          ),
+          _InfoRow(
+            label: 'Status',
+            value: launchpad.status == 'active' ? 'Active' : 'Inactive',
+          ),
           _InfoRow(
             label: 'Successful Launches',
             value: '${launchpad.launchSuccesses} / ${launchpad.launchAttempts}',
