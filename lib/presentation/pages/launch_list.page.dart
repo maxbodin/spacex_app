@@ -114,7 +114,6 @@ class _LaunchDisplay extends StatelessWidget {
     );
   }
 
-
   Widget _buildSliverContent(List<LaunchModel> launches) {
     if (isGridView) {
       return SliverPadding(

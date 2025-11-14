@@ -49,7 +49,6 @@ class LaunchModel {
   @JsonKey(name: 'cores')
   final List<CoreModel> cores;
 
-
   LaunchModel({
     required this.id,
     required this.name,
@@ -162,7 +161,6 @@ class FlickrModel {
 
   Map<String, dynamic> toJson() => _$FlickrModelToJson(this);
 }
-
 
 @JsonSerializable()
 class FailureModel {
