@@ -24,8 +24,15 @@ class LaunchDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     String? largeImageUrl = launch.links.patch.large;
-    if (kIsWeb && largeImageUrl != null) {
-      largeImageUrl = getProxiedImageUrl(largeImageUrl);
+    String? smallImageUrl = launch.links.patch.small;
+
+    if (kIsWeb) {
+      if (largeImageUrl != null) {
+        largeImageUrl = getProxiedImageUrl(largeImageUrl);
+      }
+      if (smallImageUrl != null) {
+        smallImageUrl = getProxiedImageUrl(smallImageUrl);
+      }
     }
 
     return Scaffold(
@@ -54,9 +61,9 @@ class LaunchDetailPage extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _buildHeader(context, largeImageUrl),
+              _buildHeader(context, largeImageUrl, smallImageUrl),
               const SizedBox(height: 24),
 
               if (launch.details != null || launch.failures.isNotEmpty)
@@ -77,46 +84,71 @@ class LaunchDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, String? imageUrl) {
-    return Column(
-      children: [
-        if (imageUrl != null)
-          Hero(
-            tag: 'patch_${launch.id}',
-            child: CachedNetworkImage(
-              imageUrl: imageUrl,
-              height: 150,
-              placeholder: (context, url) =>
-                  const Center(child: CircularProgressIndicator()),
-              errorWidget: (context, url, error) =>
-                  const Icon(Icons.error, size: 50),
+  Widget _buildHeader(
+    BuildContext context,
+    String? largeImageUrl,
+    String? smallImageUrl,
+  ) {
+    final displayUrl = largeImageUrl ?? smallImageUrl;
+
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (displayUrl != null)
+            Hero(
+              tag: 'patch_${launch.id}',
+              child: CachedNetworkImage(
+                imageUrl: displayUrl,
+                height: 150,
+                fit: BoxFit.contain,
+                placeholder: (context, url) {
+                  if (smallImageUrl != null && largeImageUrl != null) {
+                    return CachedNetworkImage(
+                      imageUrl: smallImageUrl,
+                      fit: BoxFit.contain,
+                    );
+                  }
+                  return const Center(child: CircularProgressIndicator());
+                },
+                errorWidget: (context, url, error) {
+                  if (smallImageUrl != null) {
+                    return CachedNetworkImage(
+                      imageUrl: smallImageUrl,
+                      fit: BoxFit.contain,
+                    );
+                  }
+                  return const Icon(Icons.error, size: 50);
+                },
+              ),
             ),
+          const SizedBox(height: 16),
+          Text(
+            'Flight #${launch.flightNumber}',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: Colors.grey),
           ),
-        const SizedBox(height: 16),
-        Text(
-          'Flight #${launch.flightNumber}',
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(color: Colors.grey),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          launch.name,
-          textAlign: TextAlign.center,
-          style: Theme.of(
-            context,
-          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        _StatusTag(success: launch.success),
-        const SizedBox(height: 12),
-        Text(
-          DateFormat.yMMMMd().add_jm().format(launch.dateUtc.toLocal()),
-          style: Theme.of(
-            context,
-          ).textTheme.bodyLarge?.copyWith(color: Colors.grey.shade400),
-        ),
-      ],
+          const SizedBox(height: 4),
+          Text(
+            launch.name,
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          _StatusTag(success: launch.success),
+          const SizedBox(height: 12),
+          Text(
+            DateFormat.yMMMMd().add_jm().format(launch.dateUtc.toLocal()),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: Colors.grey.shade400),
+          ),
+        ],
+      ),
     );
   }
 
@@ -134,13 +166,14 @@ class LaunchDetailPage extends StatelessWidget {
               ).textTheme.bodyLarge?.copyWith(height: 1.5),
             ),
           if (launch.failures.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            if (launch.details != null) const SizedBox(height: 16),
             Text(
               'Failures:',
               style: Theme.of(
                 context,
               ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 4),
             ...launch.failures.map(
               (f) => Text(
                 '• ${f.reason}',
@@ -193,9 +226,12 @@ class LaunchDetailPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (launch.cores.length > 1)
-                  Text(
-                    "Core #${idx + 1}",
-                    style: Theme.of(context).textTheme.titleMedium,
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Text(
+                      "Core #${idx + 1}",
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                   ),
                 _InfoRow(label: 'Core ID', value: core.core ?? 'N/A'),
                 _InfoRow(
@@ -269,6 +305,7 @@ class _InfoCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 24.0),
       color: Colors.grey.shade900,
+      clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
