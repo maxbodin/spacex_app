@@ -122,7 +122,20 @@ class _LaunchDetailView extends StatelessWidget {
                     const SizedBox(height: 24),
 
                     _buildDetailsCard(context, state.launch),
-                    _buildRocketInfoCard(context, state.rocket),
+
+                    _buildRocketGeneralInfoCard(context, state.rocket),
+                    _buildRocketImageGallery(
+                      context,
+                      state.rocket.flickrImages,
+                    ),
+                    _buildRocketSpecsCard(context, state.rocket),
+                    _buildRocketStagesCard(context, state.rocket),
+
+                    _buildPayloadCapacityCard(
+                      context,
+                      state.rocket.payloadWeights,
+                    ),
+
                     _buildLaunchpadInfoCard(context, state.launchpad),
 
                     if (state.payloads.isNotEmpty)
@@ -249,7 +262,7 @@ class _LaunchDetailView extends StatelessWidget {
     );
   }
 
-  Widget _buildRocketInfoCard(BuildContext context, RocketModel rocket) {
+  Widget _buildRocketGeneralInfoCard(BuildContext context, RocketModel rocket) {
     final costFormat = NumberFormat.currency(
       locale: 'en_US',
       symbol: '\$',
@@ -266,7 +279,10 @@ class _LaunchDetailView extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _InfoRow(label: 'Company', value: rocket.company),
-          _InfoRow(label: 'Country', value: rocket.country),
+          _InfoRow(
+            label: 'First Flight',
+            value: DateFormat.yMMMMd().format(rocket.firstFlight),
+          ),
           _InfoRow(label: 'Success Rate', value: '${rocket.successRatePct}%'),
           _InfoRow(
             label: 'Cost Per Launch',
@@ -276,7 +292,185 @@ class _LaunchDetailView extends StatelessWidget {
             label: 'Status',
             value: rocket.active ? 'Active' : 'Inactive',
           ),
+          _LinkButton(
+            text: 'View on Wikipedia',
+            icon: Icons.public,
+            onPressed: () => _launchUrl(rocket.wikipedia),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRocketImageGallery(BuildContext context, List<String> images) {
+    if (images.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+          child: Text("Gallery", style: Theme.of(context).textTheme.titleLarge),
+        ),
+        SizedBox(
+          height: 150,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: images.length,
+            itemBuilder: (context, index) {
+              final imageUrl = kIsWeb
+                  ? getProxiedImageUrl(images[index])
+                  : images[index];
+              return Card(
+                clipBehavior: Clip.antiAlias,
+                margin: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  width: 250,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) =>
+                      const Center(child: CircularProgressIndicator()),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildRocketSpecsCard(BuildContext context, RocketModel rocket) {
+    final massFormat = NumberFormat.decimalPattern('en_US');
+    return _InfoCard(
+      title: 'Specifications',
+      child: Column(
+        children: [
+          _InfoRow(
+            label: 'Height',
+            value: '${rocket.height.meters} m / ${rocket.height.feet} ft',
+          ),
+          _InfoRow(
+            label: 'Diameter',
+            value: '${rocket.diameter.meters} m / ${rocket.diameter.feet} ft',
+          ),
+          _InfoRow(
+            label: 'Mass',
+            value:
+                '${massFormat.format(rocket.mass.kg)} kg / ${massFormat.format(rocket.mass.lb)} lb',
+          ),
+          _InfoRow(label: 'Stages', value: rocket.stages.toString()),
+          _InfoRow(label: 'Boosters', value: rocket.boosters.toString()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRocketStagesCard(BuildContext context, RocketModel rocket) {
+    final theme = Theme.of(context).copyWith(dividerColor: Colors.transparent);
+    return _InfoCard(
+      title: 'Stages & Engines',
+      child: Theme(
+        data: theme,
+        child: Column(
+          children: [
+            ExpansionTile(
+              title: const Text('First Stage'),
+              tilePadding: EdgeInsets.zero,
+              children: [
+                _InfoRow(
+                  label: 'Engines',
+                  value: rocket.firstStage.engines.toString(),
+                ),
+                _InfoRow(
+                  label: 'Fuel Amount',
+                  value: '${rocket.firstStage.fuelAmountTons} tons',
+                ),
+                _InfoRow(
+                  label: 'Burn Time',
+                  value: '${rocket.firstStage.burnTimeSec ?? 'N/A'} sec',
+                ),
+                _InfoRow(
+                  label: 'Thrust (Sea Level)',
+                  value: '${rocket.firstStage.thrustSeaLevel?.kN ?? 'N/A'} kN',
+                ),
+                _InfoRow(
+                  label: 'Thrust (Vacuum)',
+                  value: '${rocket.firstStage.thrustVacuum?.kN ?? 'N/A'} kN',
+                ),
+              ],
+            ),
+            ExpansionTile(
+              title: const Text('Second Stage'),
+              tilePadding: EdgeInsets.zero,
+              children: [
+                _InfoRow(
+                  label: 'Engines',
+                  value: rocket.secondStage.engines.toString(),
+                ),
+                _InfoRow(
+                  label: 'Fuel Amount',
+                  value: '${rocket.secondStage.fuelAmountTons} tons',
+                ),
+                _InfoRow(
+                  label: 'Burn Time',
+                  value: '${rocket.secondStage.burnTimeSec ?? 'N/A'} sec',
+                ),
+                _InfoRow(
+                  label: 'Thrust',
+                  value: '${rocket.secondStage.thrust?.kN ?? 'N/A'} kN',
+                ),
+              ],
+            ),
+            ExpansionTile(
+              title: Text('Engines (${rocket.engines.type})'),
+              tilePadding: EdgeInsets.zero,
+              children: [
+                _InfoRow(
+                  label: 'Type',
+                  value: '${rocket.engines.type} ${rocket.engines.version}',
+                ),
+                _InfoRow(
+                  label: 'Number',
+                  value: rocket.engines.number.toString(),
+                ),
+                _InfoRow(
+                  label: 'Layout',
+                  value: rocket.engines.layout ?? 'N/A',
+                ),
+                _InfoRow(
+                  label: 'Propellant 1',
+                  value: rocket.engines.propellant1,
+                ),
+                _InfoRow(
+                  label: 'Propellant 2',
+                  value: rocket.engines.propellant2,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPayloadCapacityCard(
+    BuildContext context,
+    List<PayloadWeightModel> payloads,
+  ) {
+    final massFormat = NumberFormat.decimalPattern('en_US');
+    return _InfoCard(
+      title: 'Payload Capacity',
+      child: Column(
+        children: payloads
+            .map(
+              (p) => _InfoRow(
+                label: p.name,
+                value: '${massFormat.format(p.kg)} kg',
+              ),
+            )
+            .toList(),
       ),
     );
   }
