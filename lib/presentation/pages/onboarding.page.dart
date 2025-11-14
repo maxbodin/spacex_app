@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:spacex_app/presentation/pages/launch_list.page.dart';
 
 class OnboardingContent {

@@ -47,9 +47,7 @@ class LaunchListPage extends StatelessWidget {
               if (launchState is LaunchListLoaded &&
                   favoritesState is FavoritesLoaded) {
                 final allLaunches = launchState.launches.reversed.toList();
-
-                final favoriteIds = favoritesState.favoriteIds
-                    .toSet();
+                final favoriteIds = favoritesState.favoriteIds.toSet();
 
                 final favoriteLaunches = <LaunchModel>[];
                 final otherLaunches = <LaunchModel>[];
@@ -62,10 +60,9 @@ class LaunchListPage extends StatelessWidget {
                   }
                 }
 
-                final sortedLaunches = [...favoriteLaunches, ...otherLaunches];
-
                 return _LaunchDisplay(
-                  launches: sortedLaunches,
+                  favoriteLaunches: favoriteLaunches,
+                  otherLaunches: otherLaunches,
                   isGridView: launchState.isGridView,
                 );
               }
@@ -80,42 +77,91 @@ class LaunchListPage extends StatelessWidget {
 }
 
 /// Private, stateless widget to display launches in either a grid or a list.
-/// This prevents code duplication in the main build method.
 class _LaunchDisplay extends StatelessWidget {
-  final List<LaunchModel> launches;
+  final List<LaunchModel> favoriteLaunches;
+  final List<LaunchModel> otherLaunches;
   final bool isGridView;
 
-  const _LaunchDisplay({required this.launches, required this.isGridView});
+  const _LaunchDisplay({
+    required this.favoriteLaunches,
+    required this.otherLaunches,
+    required this.isGridView,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (launches.isEmpty) {
+    if (favoriteLaunches.isEmpty && otherLaunches.isEmpty) {
       return const Center(
         child: Text('No launches found.', style: TextStyle(color: Colors.grey)),
       );
     }
 
+    return CustomScrollView(
+      slivers: [
+        // FAVORITES SECTION
+        // Only show this section if there are favorites.
+        if (favoriteLaunches.isNotEmpty) ...[
+          const _SectionHeader(title: 'Favorites'),
+          _buildSliverContent(favoriteLaunches),
+        ],
+
+        // OTHER LAUNCHES SECTION
+        if (otherLaunches.isNotEmpty) ...[
+          const _SectionHeader(title: 'All Launches'),
+          _buildSliverContent(otherLaunches),
+        ],
+      ],
+    );
+  }
+
+
+  Widget _buildSliverContent(List<LaunchModel> launches) {
     if (isGridView) {
-      return GridView.builder(
-        padding: const EdgeInsets.all(8),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.8,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
+      return SliverPadding(
+        padding: const EdgeInsets.all(8.0),
+        sliver: SliverGrid(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 0.8,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+          ),
+          delegate: SliverChildBuilderDelegate(
+            (context, index) => LaunchGridItem(launch: launches[index]),
+            childCount: launches.length,
+          ),
         ),
-        itemCount: launches.length,
-        itemBuilder: (context, index) {
-          return LaunchGridItem(launch: launches[index]);
-        },
+      );
+    } else {
+      return SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => LaunchListItem(launch: launches[index]),
+          childCount: launches.length,
+        ),
       );
     }
+  }
+}
 
-    return ListView.builder(
-      itemCount: launches.length,
-      itemBuilder: (context, index) {
-        return LaunchListItem(launch: launches[index]);
-      },
+/// Widget for displaying section headers.
+class _SectionHeader extends StatelessWidget {
+  final String title;
+
+  const _SectionHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16.0, 24.0, 16.0, 8.0),
+        child: Text(
+          title,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Colors.blueAccent.shade100,
+          ),
+        ),
+      ),
     );
   }
 }
