@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:spacex_app/core/extensions/string.extension.dart';
 import 'package:spacex_app/data/models/launch.model.dart';
 import 'package:spacex_app/data/models/launch_search_extension.dart';
+import 'package:spacex_app/presentation/bloc/data_assets/data_assets_cubit.dart';
+import 'package:spacex_app/presentation/bloc/data_assets/data_assets_state.dart';
 import 'package:spacex_app/presentation/bloc/favorites/favorites.cubit.dart';
 import 'package:spacex_app/presentation/bloc/favorites/favorites.state.dart';
+import 'package:spacex_app/presentation/bloc/filter/filter_cubit.dart';
+import 'package:spacex_app/presentation/bloc/filter/filter_state.model.dart';
 import 'package:spacex_app/presentation/bloc/launches/launch_list.cubit.dart';
 import 'package:spacex_app/presentation/bloc/launches/launch_list.state.dart';
 import 'package:spacex_app/presentation/widgets/organisms/launch_grid_item.dart';
@@ -42,6 +47,38 @@ class _LaunchListPageState extends State<LaunchListPage> {
       appBar: AppBar(
         title: const Text('SpaceX Launches'),
         actions: [
+          // Sort Menu Button
+          BlocBuilder<LaunchListCubit, LaunchListState>(
+            builder: (context, launchState) {
+              if (launchState is! LaunchListLoaded) {
+                return const SizedBox.shrink();
+              }
+              return BlocBuilder<FilterCubit, FilterState>(
+                builder: (context, filterState) {
+                  return PopupMenuButton<SortOption>(
+                    icon: const Icon(Icons.sort),
+                    onSelected: (option) =>
+                        context.read<FilterCubit>().setSortOption(option),
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: SortOption.dateNewestFirst,
+                        child: Text("Newest First"),
+                      ),
+                      const PopupMenuItem(
+                        value: SortOption.dateOldestFirst,
+                        child: Text("Oldest First"),
+                      ),
+                      const PopupMenuItem(
+                        value: SortOption.flightNumber,
+                        child: Text("By Flight Number"),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+          // View Toggle Button
           BlocBuilder<LaunchListCubit, LaunchListState>(
             builder: (context, state) {
               if (state is LaunchListLoaded) {
@@ -57,58 +94,288 @@ class _LaunchListPageState extends State<LaunchListPage> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _SearchBar(controller: _searchController),
-          Expanded(
-            child: BlocBuilder<FavoritesCubit, FavoritesState>(
-              builder: (context, favoritesState) {
-                return BlocBuilder<LaunchListCubit, LaunchListState>(
-                  builder: (context, launchState) {
-                    if (launchState is LaunchListLoading ||
-                        launchState is LaunchListInitial) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (launchState is LaunchListError) {
-                      return Center(
-                        child: Text('Error: ${launchState.message}'),
-                      );
-                    }
-                    if (launchState is LaunchListLoaded &&
-                        favoritesState is FavoritesLoaded) {
-                      final allLaunches = launchState.launches.reversed
-                          .toList();
+      body: BlocBuilder<DataAssetsCubit, DataAssetsState>(
+        builder: (context, dataAssetsState) {
+          if (dataAssetsState is DataAssetsLoading ||
+              dataAssetsState is DataAssetsInitial) {
+            return const Center(child: Text("Preparing mission data..."));
+          }
+          if (dataAssetsState is DataAssetsError) {
+            return Center(
+              child: Text(
+                'Could not load app data: ${dataAssetsState.message}',
+              ),
+            );
+          }
+          if (dataAssetsState is DataAssetsLoaded) {
+            return BlocBuilder<LaunchListCubit, LaunchListState>(
+              builder: (context, launchState) {
+                if (launchState is LaunchListLoading ||
+                    launchState is LaunchListInitial) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (launchState is LaunchListError) {
+                  return Center(child: Text('Error: ${launchState.message}'));
+                }
+                if (launchState is LaunchListLoaded) {
+                  final years =
+                      launchState.launches
+                          .map((l) => l.dateUtc.year)
+                          .toSet()
+                          .toList()
+                        ..sort((a, b) => b.compareTo(a));
+                  final rockets = {
+                    for (var r in dataAssetsState.rockets) r.id: r.name,
+                  };
+                  final launchpads = {
+                    for (var p in dataAssetsState.launchpads) p.id: p.fullName,
+                  };
+                  final filterOptions = FilterOptions(
+                    years: years,
+                    rockets: rockets,
+                    launchpads: launchpads,
+                  );
 
-                      final filteredLaunches = allLaunches
-                          .where((launch) => launch.matchesSearch(_searchQuery))
-                          .toList();
-
-                      final favoriteIds = favoritesState.favoriteIds.toSet();
-                      final favoriteLaunches = <LaunchModel>[];
-                      final otherLaunches = <LaunchModel>[];
-
-                      for (final launch in filteredLaunches) {
-                        if (favoriteIds.contains(launch.id)) {
-                          favoriteLaunches.add(launch);
-                        } else {
-                          otherLaunches.add(launch);
-                        }
-                      }
-
-                      return _LaunchDisplay(
-                        favoriteLaunches: favoriteLaunches,
-                        otherLaunches: otherLaunches,
-                        isGridView: launchState.isGridView,
-                        searchQuery: _searchQuery,
-                      );
-                    }
-                    return const Center(child: Text('Something went wrong.'));
-                  },
-                );
+                  return Column(
+                    children: [
+                      _SearchBar(controller: _searchController),
+                      _FilterBar(options: filterOptions),
+                      Expanded(
+                        child: BlocBuilder<FavoritesCubit, FavoritesState>(
+                          builder: (context, favoritesState) {
+                            return BlocBuilder<FilterCubit, FilterState>(
+                              builder: (context, filterState) {
+                                if (favoritesState is FavoritesLoaded) {
+                                  List<LaunchModel> processedLaunches =
+                                      List.from(launchState.launches);
+                                  processedLaunches = processedLaunches.where((
+                                    launch,
+                                  ) {
+                                    final bool statusFilter;
+                                    switch (filterState.launchStatus) {
+                                      case LaunchStatus.success:
+                                        statusFilter = launch.success ?? false;
+                                        break;
+                                      case LaunchStatus.failure:
+                                        statusFilter =
+                                            !(launch.success ?? false);
+                                        break;
+                                      case null:
+                                        statusFilter = true;
+                                        break;
+                                    }
+                                    final yearFilter =
+                                        filterState.year == null ||
+                                        launch.dateUtc.year == filterState.year;
+                                    final rocketFilter =
+                                        filterState.rocketId == null ||
+                                        launch.rocketId == filterState.rocketId;
+                                    final launchpadFilter =
+                                        filterState.launchpadId == null ||
+                                        launch.launchpad ==
+                                            filterState.launchpadId;
+                                    return statusFilter &&
+                                        yearFilter &&
+                                        rocketFilter &&
+                                        launchpadFilter;
+                                  }).toList();
+                                  processedLaunches.sort((a, b) {
+                                    switch (filterState.sortOption) {
+                                      case SortOption.dateOldestFirst:
+                                        return a.dateUtc.compareTo(b.dateUtc);
+                                      case SortOption.flightNumber:
+                                        return a.flightNumber.compareTo(
+                                          b.flightNumber,
+                                        );
+                                      case SortOption.dateNewestFirst:
+                                        return b.dateUtc.compareTo(a.dateUtc);
+                                    }
+                                  });
+                                  final searchedLaunches = processedLaunches
+                                      .where(
+                                        (launch) =>
+                                            launch.matchesSearch(_searchQuery),
+                                      )
+                                      .toList();
+                                  final favoriteIds = favoritesState.favoriteIds
+                                      .toSet();
+                                  final favoriteLaunches = <LaunchModel>[];
+                                  final otherLaunches = <LaunchModel>[];
+                                  for (final launch in searchedLaunches) {
+                                    if (favoriteIds.contains(launch.id)) {
+                                      favoriteLaunches.add(launch);
+                                    } else {
+                                      otherLaunches.add(launch);
+                                    }
+                                  }
+                                  return _LaunchDisplay(
+                                    favoriteLaunches: favoriteLaunches,
+                                    otherLaunches: otherLaunches,
+                                    isGridView: launchState.isGridView,
+                                    searchQuery: _searchQuery,
+                                  );
+                                }
+                                return const Center(
+                                  child: Text("Loading favorites..."),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return const Center(child: Text('Something went wrong.'));
               },
-            ),
+            );
+          }
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+  }
+}
+
+class _FilterBar extends StatelessWidget {
+  final FilterOptions options;
+
+  const _FilterBar({required this.options});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<FilterCubit, FilterState>(
+      builder: (context, state) {
+        final rocketLabel = state.rocketId == null
+            ? "All Rockets"
+            : options.rockets[state.rocketId] ?? "Unknown Rocket";
+
+        final launchpadLabel = state.launchpadId == null
+            ? "All Pads"
+            : options.launchpads[state.launchpadId] ?? "Unknown Pad";
+
+        final statusLabel = state.launchStatus == null
+            ? "All Statuses"
+            : "Status: ${state.launchStatus!.name}";
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: Row(
+            children: [
+              // Status Filter
+              _FilterChip(
+                label: statusLabel,
+                allText: "All Statuses",
+                options: {for (var v in LaunchStatus.values) v.name: v},
+                isEnumMap: true,
+                onSelected: (status) => context
+                    .read<FilterCubit>()
+                    .setLaunchStatus(status as LaunchStatus?),
+              ),
+
+              // Year Filter
+              _FilterChip(
+                label: state.year == null ? "All Years" : "Year: ${state.year}",
+                allText: "All Years",
+                options: {for (var y in options.years) y.toString(): y},
+                onSelected: (year) =>
+                    context.read<FilterCubit>().setYear(year as int?),
+              ),
+
+              // Rocket Filter
+              _FilterChip(
+                label: rocketLabel,
+                allText: "All Rockets",
+                options: options.rockets,
+                onSelected: (id) =>
+                    context.read<FilterCubit>().setRocket(id as String?),
+              ),
+
+              // Launchpad Filter
+              _FilterChip(
+                label: launchpadLabel,
+                allText: "All Pads",
+                options: options.launchpads,
+                onSelected: (id) =>
+                    context.read<FilterCubit>().setLaunchpad(id as String?),
+              ),
+            ],
           ),
-        ],
+        );
+      },
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final Map<String, dynamic> options;
+  final Function(dynamic) onSelected;
+  final String? allText;
+  final bool isEnumMap;
+
+  const _FilterChip({
+    required this.label,
+    required this.options,
+    required this.onSelected,
+    this.allText,
+    this.isEnumMap = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+      child: ActionChip(
+        label: Text(label),
+        avatar: const Icon(Icons.arrow_drop_down, size: 18),
+        onPressed: () async {
+          final RenderBox button = context.findRenderObject()! as RenderBox;
+          final RenderBox overlay =
+              Overlay.of(context).context.findRenderObject()! as RenderBox;
+          final position = RelativeRect.fromRect(
+            Rect.fromPoints(
+              button.localToGlobal(Offset.zero, ancestor: overlay),
+              button.localToGlobal(
+                button.size.bottomRight(Offset.zero),
+                ancestor: overlay,
+              ),
+            ),
+            Offset.zero & overlay.size,
+          );
+
+          final selectedValue = await showMenu(
+            context: context,
+            position: position,
+            items: [
+              if (allText != null)
+                PopupMenuItem(value: null, child: Text(allText!)),
+              ...options.entries.map((entry) {
+                final String displayText = isEnumMap
+                    ? entry.key
+                    : entry.value.toString();
+
+                return PopupMenuItem(
+                  value: isEnumMap ? entry.value : entry.key,
+                  child: Text(displayText.capitalize()),
+                );
+              }),
+            ],
+          );
+
+          if (selectedValue != null || allText != null) {
+            // For the year filter, the selectedValue is the key (a String).
+            // We need to look up the corresponding integer value.
+            if (!isEnumMap &&
+                selectedValue is String &&
+                options[selectedValue] is int) {
+              onSelected(options[selectedValue]);
+            } else {
+              onSelected(selectedValue);
+            }
+          }
+        },
       ),
     );
   }

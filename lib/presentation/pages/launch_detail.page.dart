@@ -789,8 +789,8 @@ class _StatusTag extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
       decoration: BoxDecoration(
         color: isSuccess
-            ? Colors.green.withOpacity(0.2)
-            : Colors.red.withOpacity(0.2),
+            ? Colors.green.withValues(alpha: 0.2)
+            : Colors.red.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20.0),
         border: Border.all(
           color: isSuccess ? Colors.green.shade300 : Colors.red.shade300,

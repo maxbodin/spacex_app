@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:spacex_app/presentation/bloc/data_assets/data_assets_cubit.dart';
+import 'package:spacex_app/presentation/bloc/filter/filter_cubit.dart';
 
 import 'data/api/spacex.service.dart';
 import 'presentation/bloc/favorites/favorites.cubit.dart';
@@ -33,6 +35,12 @@ class MyApp extends StatelessWidget {
         ),
         BlocProvider<FavoritesCubit>(
           create: (context) => FavoritesCubit()..loadFavorites(),
+        ),
+        BlocProvider<FilterCubit>(create: (context) => FilterCubit()),
+        BlocProvider<DataAssetsCubit>(
+          create: (context) => DataAssetsCubit(
+            apiService: SpaceXApiServiceImpl(client: http.Client()),
+          )..fetchDataAssets(),
         ),
       ],
       child: MaterialApp(
