@@ -10,7 +10,7 @@ Track past and present launches, get technical details of rockets, launchpads an
 
 ## ✨ Feature Showcase
 
-###  Polished, multi-page onboarding for new users, ensuring a great first-time experience.
+###  Onboarding
 
 <table align="center">
   <tr>
