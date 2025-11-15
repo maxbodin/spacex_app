@@ -256,7 +256,7 @@ class _FilterBar extends StatelessWidget {
 
         final statusLabel = state.launchStatus == null
             ? "All Statuses"
-            : "Status: ${state.launchStatus!.name}";
+            : "Status: ${state.launchStatus!.name.capitalize()}";
 
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
